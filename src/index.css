@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  font-size: 15px;
+}
+
+body {
+  margin: 0;
+  background-color: #0b0e14;
+  color: #f1f5f9;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+
+/* Hide scrollbars */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Subtle, minimal scrollbars for body/dialogs */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #283548;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3b4d68;
+}
+
+/* Infinite Marquee Ticker */
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.ticker-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 38s linear infinite;
+  will-change: transform;
+}
+
+.ticker-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Heatmap Tile Stationary Hover (No expansion, no overlapping) */
+.heatmap-tile {
+  user-select: none;
+  transition: filter 0.12s ease;
+}
+.heatmap-tile:hover {
+  filter: brightness(1.15);
+}
+
+/* Order Book Flat Depth Bars */
+.depth-bid-bar {
+  background-color: rgba(16, 185, 129, 0.14);
+}
+
+.depth-ask-bar {
+  background-color: rgba(244, 63, 94, 0.14);
+}
+
+/* Hide HTML5 number input increment/decrement spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Global input focus & border reset */
+input, select, textarea {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* Smooth Slide-over & Drawer Animations */
+@keyframes drawerSlideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0.85;
+  }
+  to {
+    transform: translateX(0%);
+    opacity: 1;
+  }
+}
+
+@keyframes drawerBackdropFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-drawer-slide {
+  animation: drawerSlideInRight 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-drawer-backdrop {
+  animation: drawerBackdropFade 0.22s ease-out forwards;
+}
+
