@@ -199,31 +199,37 @@ export const TechnicalGauge: React.FC<TechnicalGaugeProps> = ({ data, loading })
       </div>
 
       {/* Breakdown: Oscillators & MAs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-3">
         
         {/* Oscillators */}
         <div className="bg-[#141b27] p-3.5 rounded-xl flex flex-col gap-2.5">
-          <div className="flex justify-between items-center text-xs sm:text-sm pb-1">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-white/5">
+            <div className="flex items-center gap-2 shrink-0">
               <Activity className="w-4 h-4 text-sky-400 shrink-0" />
-              <span className="font-bold text-slate-200">
+              <span className="font-bold text-slate-200 text-xs sm:text-sm whitespace-nowrap">
                 {language === 'tr' ? 'Osilatörler' : 'Oscillators'}
               </span>
             </div>
-            <div className="flex gap-2 text-xs font-mono font-bold">
-              <span className="text-emerald-400">AL: {oscillators.summary.buy}</span>
-              <span className="text-rose-400">SAT: {oscillators.summary.sell}</span>
-              <span className="text-slate-400">NÖTR: {oscillators.summary.neutral}</span>
+            <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold shrink-0">
+              <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 whitespace-nowrap">
+                AL: {oscillators.summary.buy}
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-rose-500/15 text-rose-400 border border-rose-500/20 whitespace-nowrap">
+                SAT: {oscillators.summary.sell}
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-slate-500/15 text-slate-300 border border-slate-500/20 whitespace-nowrap">
+                NÖTR: {oscillators.summary.neutral}
+              </span>
             </div>
           </div>
 
           <div className="flex flex-col gap-2 text-xs font-mono">
             {/* RSI */}
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center py-0.5">
               <span className="text-slate-400 font-medium">RSI (14)</span>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <span className="text-white font-bold">{indicators.rsi.value}</span>
-                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${
                   indicators.rsi.value < 30 ? 'text-emerald-400 bg-emerald-500/20' :
                   indicators.rsi.value > 70 ? 'text-rose-400 bg-rose-500/20' : 'text-slate-300 bg-[#182030]'
                 }`}>
@@ -233,11 +239,11 @@ export const TechnicalGauge: React.FC<TechnicalGaugeProps> = ({ data, loading })
             </div>
 
             {/* MACD */}
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center py-0.5">
               <span className="text-slate-400 font-medium">MACD (12,26)</span>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <span className="text-white font-bold">{indicators.macd.histogram.toFixed(2)}</span>
-                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${
                   indicators.macd.histogram >= 0 ? 'text-emerald-400 bg-emerald-500/20' : 'text-rose-400 bg-rose-500/20'
                 }`}>
                   {indicators.macd.signal}
@@ -246,11 +252,11 @@ export const TechnicalGauge: React.FC<TechnicalGaugeProps> = ({ data, loading })
             </div>
 
             {/* Stochastic */}
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center py-0.5">
               <span className="text-slate-400 font-medium">Stoch %K (14)</span>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <span className="text-white font-bold">{indicators.stochastic.k}</span>
-                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${
                   indicators.stochastic.k < 20 ? 'text-emerald-400 bg-emerald-500/20' :
                   indicators.stochastic.k > 80 ? 'text-rose-400 bg-rose-500/20' : 'text-slate-300 bg-[#182030]'
                 }`}>
@@ -261,11 +267,11 @@ export const TechnicalGauge: React.FC<TechnicalGaugeProps> = ({ data, loading })
 
             {/* Bollinger %B */}
             {indicators.bollingerBands && (
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center py-0.5">
                 <span className="text-slate-400 font-medium">Bollinger %B</span>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <span className="text-white font-bold">{indicators.bollingerBands.percentB.toFixed(2)}</span>
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${
                     indicators.bollingerBands.percentB < 0 ? 'text-emerald-400 bg-emerald-500/20' :
                     indicators.bollingerBands.percentB > 1 ? 'text-rose-400 bg-rose-500/20' : 'text-slate-300 bg-[#182030]'
                   }`}>
@@ -279,26 +285,30 @@ export const TechnicalGauge: React.FC<TechnicalGaugeProps> = ({ data, loading })
 
         {/* Moving Averages */}
         <div className="bg-[#141b27] p-3.5 rounded-xl flex flex-col gap-2.5">
-          <div className="flex justify-between items-center text-xs sm:text-sm pb-1">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-white/5">
+            <div className="flex items-center gap-2 shrink-0">
               <TrendingUp className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span className="font-bold text-slate-200">
+              <span className="font-bold text-slate-200 text-xs sm:text-sm whitespace-nowrap">
                 {language === 'tr' ? 'Ortalamalar' : 'Moving Averages'}
               </span>
             </div>
-            <div className="flex gap-2 text-xs font-mono font-bold">
-              <span className="text-emerald-400">AL: {movingAverages.summary.buy}</span>
-              <span className="text-rose-400">SAT: {movingAverages.summary.sell}</span>
+            <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold shrink-0">
+              <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 whitespace-nowrap">
+                AL: {movingAverages.summary.buy}
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-rose-500/15 text-rose-400 border border-rose-500/20 whitespace-nowrap">
+                SAT: {movingAverages.summary.sell}
+              </span>
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5 text-xs font-mono max-h-[140px] overflow-y-auto pr-1">
+          <div className="flex flex-col gap-1.5 text-xs font-mono max-h-[160px] overflow-y-auto pr-1">
             {movingAverages.list.map((ma) => (
-              <div key={ma.name} className="flex justify-between items-center">
+              <div key={ma.name} className="flex justify-between items-center py-0.5">
                 <span className="text-slate-400 font-medium">{ma.name}</span>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   {ma.value !== null && <span className="text-slate-300 font-bold">{ma.value.toFixed(2)}</span>}
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap ${
                     ma.signal === 'AL' ? 'text-emerald-400 bg-emerald-500/20' :
                     ma.signal === 'SAT' ? 'text-rose-400 bg-rose-500/20' : 'text-slate-300 bg-[#182030]'
                   }`}>
@@ -315,14 +325,14 @@ export const TechnicalGauge: React.FC<TechnicalGaugeProps> = ({ data, loading })
       {/* Pivot Points */}
       {pivots && (
         <div className="bg-[#141b27] p-3.5 rounded-xl flex flex-col gap-2.5">
-          <div className="flex justify-between items-center text-xs sm:text-sm pb-1">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-white/5">
+            <div className="flex items-center gap-2 shrink-0">
               <SlidersHorizontal className="w-4 h-4 text-amber-400 shrink-0" />
-              <span className="font-bold text-slate-200">
+              <span className="font-bold text-slate-200 text-xs sm:text-sm whitespace-nowrap">
                 {language === 'tr' ? 'Klasik Pivot Seviyeleri' : 'Classic Pivot Points'}
               </span>
             </div>
-            <span className="text-xs font-mono font-bold text-slate-400">
+            <span className="text-xs font-mono font-bold text-slate-400 whitespace-nowrap">
               {language === 'tr' ? 'Destek & Direnç' : 'Support & Resistance'}
             </span>
           </div>
@@ -354,3 +364,5 @@ export const TechnicalGauge: React.FC<TechnicalGaugeProps> = ({ data, loading })
     </div>
   );
 };
+
+
