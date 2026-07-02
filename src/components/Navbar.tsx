@@ -99,10 +99,10 @@ export const Navbar: React.FC = () => {
             })}
           </nav>
 
-          {/* Search Box - Generously Sized Right Next to Nav */}
+          {/* Search Box - Expands all the way to Notifications Button */}
           <button
             onClick={() => setIsSearchOpen(true)}
-            className="hidden md:flex items-center justify-between w-64 lg:w-[320px] xl:w-[380px] h-10 bg-[#141b27] hover:bg-[#192334] text-slate-300 hover:text-white px-4 rounded-xl text-xs font-medium transition shadow-inner shrink-0"
+            className="hidden md:flex items-center justify-between flex-1 min-w-[220px] h-10 bg-[#141b27] hover:bg-[#192334] text-slate-300 hover:text-white px-4 rounded-xl text-xs font-medium transition shadow-inner"
             aria-label="Hisse senedi ara"
           >
             <div className="flex items-center gap-2.5 min-w-0">
