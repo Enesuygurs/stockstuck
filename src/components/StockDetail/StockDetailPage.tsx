@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
-import { getAssetCategoryLabel } from '../../utils/assetUrl';
 import { api } from '../../services/api';
 import { StockQuote, TechnicalAnalysisData } from '../../types/stock';
 import { StockChart, TimeframePerformance } from './StockChart';
@@ -20,12 +19,10 @@ import {
   X,
   Banknote,
   Coins,
-  Layers,
-  ArrowLeft
+  Layers
 } from 'lucide-react';
 
 export const StockDetailPage: React.FC = () => {
-  const navigate = useNavigate();
   const { symbol: routeSymbol } = useParams<{ symbol?: string }>();
   const {
     selectedStockSymbol,
@@ -202,32 +199,6 @@ export const StockDetailPage: React.FC = () => {
 
   return (
     <div className="w-full max-w-[1720px] mx-auto px-4 sm:px-6 py-6 flex flex-col gap-5">
-
-      {/* Top Back / Breadcrumb Navigation */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => {
-            if (window.history.state && window.history.state.idx > 0) {
-              navigate(-1);
-            } else {
-              navigate('/');
-            }
-          }}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#141b27] hover:bg-[#1c2637] text-slate-300 hover:text-white text-xs font-semibold transition border border-white/5 shadow-xs"
-          title={language === 'tr' ? 'Önceki sayfaya dön' : 'Back to previous page'}
-        >
-          <ArrowLeft className="w-3.5 h-3.5 text-emerald-400" />
-          <span>{language === 'tr' ? 'Geri Dön' : 'Go Back'}</span>
-        </button>
-
-        <div className="text-xs text-slate-500 font-mono hidden sm:block">
-          <span className="text-slate-400">StockStuck</span>
-          <span className="mx-1.5 text-slate-600">/</span>
-          <span className="text-slate-400">{getAssetCategoryLabel(activeSymbol, language).label}</span>
-          <span className="mx-1.5 text-slate-600">/</span>
-          <span className="text-emerald-400 font-bold">{activeSymbol}</span>
-        </div>
-      </div>
 
       {/* Main Stock Header Hero */}
       <div className="bg-[#101520] rounded-2xl px-5 py-4 sm:px-6 sm:py-4.5 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-5 shadow-lg">
