@@ -27,6 +27,8 @@ export const Navbar: React.FC = () => {
     setIsNotificationsDrawerOpen,
   } = useApp();
 
+  const isMac = typeof window !== 'undefined' && /(Mac|iPhone|iPod|iPad)/i.test(navigator.userAgent || navigator.platform || '');
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -112,7 +114,7 @@ export const Navbar: React.FC = () => {
               </span>
             </div>
             <kbd className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono bg-white/[0.1] text-slate-200 rounded font-bold shrink-0 ml-2">
-              ⌘K
+              {isMac ? '⌘K' : 'Ctrl K'}
             </kbd>
           </button>
         </div>
