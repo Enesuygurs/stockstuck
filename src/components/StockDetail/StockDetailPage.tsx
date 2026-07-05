@@ -190,7 +190,6 @@ export const StockDetailPage: React.FC = () => {
   const displayPriceDecimals = isTefas ? 6 : (displayPrice < 10 ? 4 : 2);
   const displayChange = isTimeframeActive ? timeframePerf.change : (quote?.change || 0);
   const displayChangePct = isTimeframeActive ? timeframePerf.changePercent : (quote?.changePercent || 0);
-  const displayLabel = isTimeframeActive ? timeframePerf.label : (quote?.pricingType === 'DAILY_NAV' ? 'Son Günlük Getiri' : 'Bugün');
   const isPositive = displayChangePct >= 0;
 
   // Realized / Projected PnL calculation for modal
@@ -247,16 +246,7 @@ export const StockDetailPage: React.FC = () => {
                   {isPositive ? <TrendingUp className="w-3.5 h-3.5 inline" /> : <TrendingDown className="w-3.5 h-3.5 inline" />}
                   <span>{quote ? `${isPositive ? '+' : ''}${displayChangePct.toFixed(2)}%` : '-'}</span>
                 </span>
-                <span className="text-slate-400 font-sans text-xs font-medium">
-                  ({displayLabel})
-                </span>
               </div>
-
-              {quote?.pricingType === 'DAILY_NAV' && (
-                <span className="text-[10px] font-sans font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md mt-1">
-                  Günde 1 Kez Açıklanan Resmi TEFAS Fiyatı (NAV)
-                </span>
-              )}
             </div>
           </div>
         </div>
