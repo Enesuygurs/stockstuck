@@ -30,11 +30,20 @@ export const KeyStats: React.FC<KeyStatsProps> = ({ quote, loading }) => {
   // ----------------------------------------------------
   // TEFAS SPECIFIC TAX & STRUCTURAL METRICS
   // ----------------------------------------------------
+  const isFreeOrVariable = 
+    quote.subSector?.toLowerCase().includes('serbest') ||
+    quote.longName?.toLowerCase().includes('serbest') ||
+    quote.sector?.toLowerCase().includes('serbest') ||
+    quote.subSector?.toLowerCase().includes('değişken') ||
+    quote.sector?.toLowerCase().includes('değişken');
+
   const isEquityIntensive = 
-    quote.subSector?.toLowerCase().includes('hisse') || 
-    quote.sector?.toLowerCase().includes('hisse') ||
-    quote.longName?.toLowerCase().includes('hisse senedi') ||
-    quote.longName?.toLowerCase().includes('hisse senedi yoğun');
+    !isFreeOrVariable && (
+      quote.subSector?.toLowerCase().includes('hisse senedi yoğun') || 
+      quote.longName?.toLowerCase().includes('hisse senedi yoğun') ||
+      quote.sector?.toLowerCase().includes('hisse senedi yoğun') ||
+      (quote.sector === 'TEFAS - Hisse Senedi' && !quote.subSector?.toLowerCase().includes('yabancı'))
+    );
 
   const isMoneyMarket = 
     quote.subSector?.toLowerCase().includes('para piyasası') || 
@@ -48,9 +57,7 @@ export const KeyStats: React.FC<KeyStatsProps> = ({ quote, loading }) => {
     quote.sector?.toLowerCase().includes('eurobond');
 
   const isTaxFree = isEquityIntensive;
-  const stopajRate = isTaxFree 
-    ? '%0' 
-    : (isMoneyMarket ? '%10 - %17.5' : '%10');
+  const stopajRate = isTaxFree ? '%0' : '%17.5';
 
   let valorAlis = 'T+1';
   let valorSatis = 'T+2';
@@ -204,7 +211,7 @@ export const KeyStats: React.FC<KeyStatsProps> = ({ quote, loading }) => {
               </b>
               {isTaxFree
                 ? 'Hisse Senedi Yoğun Fonlar GVK Geçici 67. Madde uyarınca %0 stopaja tabidir.'
-                : 'Bu fon kazançları üzerinden mevzuat uyarınca kaynakta stopaj kesintisi uygulanır.'}
+                : 'Mevzuat uyarınca hisse senedi yoğun olmayan fon kazançlarında kaynakta %17.5 stopaj kesintisi uygulanır.'}
             </span>
           </div>
         </div>

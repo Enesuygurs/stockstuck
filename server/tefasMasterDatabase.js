@@ -7,7 +7,7 @@ export const FAMOUS_PRIMARY_TEFAS = [
   // Tera Portföy Fonları
   { symbol: 'THF.IS', name: 'Tera Portföy Hisse Senedi (TL) Fonu (Hisse Senedi Yoğun Fon)', trName: 'Tera Portföy Hisse Senedi Fonu', sector: 'TEFAS - Hisse Senedi', subSector: 'Hisse Senedi Yoğun', manager: 'Tera Portföy', fee: '%2.25', risk: 6, marketCap: 3800000000 },
   { symbol: 'TP2.IS', name: 'Tera Portföy Para Piyasası (TL) Fonu', trName: 'Tera Portföy Para Piyasası', sector: 'TEFAS - Para Piyasası', subSector: 'Likit Faiz', manager: 'Tera Portföy', fee: '%1.00', risk: 2, marketCap: 6200000000 },
-  { symbol: 'TLY.IS', name: 'Tera Portföy Birinci Değişken / Serbest Fon', trName: 'Tera Portföy Birinci Fon', sector: 'TEFAS - Değişken', subSector: 'Aktif Varlık Dağılımı', manager: 'Tera Portföy', fee: '%2.40', risk: 5, marketCap: 2100000000 },
+  { symbol: 'TLY.IS', name: 'Tera Portföy Birinci Serbest Fon', trName: 'Tera Portföy Birinci Serbest', sector: 'TEFAS - Değişken / Serbest', subSector: 'Serbest Fon', manager: 'Tera Portföy', fee: '%2.00', risk: 5, marketCap: 2100000000 },
   { symbol: 'TRJ.IS', name: 'Tera Portföy Birinci Borçlanma Araçları (TL) Fonu', trName: 'Tera Borçlanma Araçları', sector: 'TEFAS - Döviz & Eurobond', subSector: 'Borçlanma Araçları', manager: 'Tera Portföy', fee: '%1.50', risk: 3, marketCap: 1800000000 },
   { symbol: 'TLV.IS', name: 'Tera Portföy Para Piyasası Katılım (TL) Fonu', trName: 'Tera Likit Katılım', sector: 'TEFAS - Para Piyasası', subSector: 'Faizsiz Likit', manager: 'Tera Portföy', fee: '%1.00', risk: 1, marketCap: 2400000000 },
 

@@ -16,6 +16,14 @@ const TEFAS_HEADERS = {
   'Referer': 'https://www.tefas.gov.tr/FonAnaliz.aspx'
 };
 
+import { FAMOUS_PRIMARY_TEFAS } from './tefasMasterDatabase.js';
+
+const tefasMasterMap = new Map();
+for (const f of FAMOUS_PRIMARY_TEFAS) {
+  const sym = f.symbol.replace('.IS', '').toUpperCase();
+  tefasMasterMap.set(sym, f);
+}
+
 // In-memory caches to ensure high speed and respect TEFAS server limits
 const fundPriceCache = new Map(); // key: `${cleanSym}_${period}`
 const fundListCache = { timestamp: 0, data: new Map() };
@@ -178,8 +186,14 @@ export async function getLiveTefasQuote(symbol) {
       return1w = Number((((price - pStart) / pStart) * 100).toFixed(2));
     }
 
-    const title = latestItem.fonUnvan || returnItem?.fonUnvan || `${cleanSym} TEFAS Yatırım Fonu`;
-    const categoryName = returnItem?.fonTurAciklama || 'TEFAS Hisse Senedi Şemsiye Fonu';
+    const masterInfo = tefasMasterMap.get(cleanSym);
+
+    const title = latestItem.fonUnvan || masterInfo?.name || returnItem?.fonUnvan || `${cleanSym} TEFAS Yatırım Fonu`;
+    const categoryName = masterInfo?.subSector || returnItem?.fonTurAciklama || 'TEFAS Yatırım Fonu';
+    const fee = masterInfo?.fee || (categoryName.toLowerCase().includes('para piyasası') ? '%1.00' : (categoryName.toLowerCase().includes('altın') || categoryName.toLowerCase().includes('kıymetli') ? '%1.75' : '%2.00'));
+    const risk = masterInfo?.risk || (returnItem?.riskDegeri ? parseInt(returnItem.riskDegeri) : 6);
+    const marketCap = masterInfo?.marketCap || (price > 500 ? Math.round(price * 250000) : Math.round(price * 1250000000));
+    const manager = masterInfo?.manager || deriveManagerFromName(title);
 
     return {
       symbol: `${cleanSym}.IS`,
@@ -191,9 +205,9 @@ export async function getLiveTefasQuote(symbol) {
       category: 'TEFAS',
       sector: 'TEFAS - Yatırım Fonları',
       subSector: categoryName,
-      manager: deriveManagerFromName(title),
-      fee: cleanSym === 'THF' ? '%2.25' : '%2.50',
-      risk: returnItem?.riskDegeri ? parseInt(returnItem.riskDegeri) : 6,
+      manager,
+      fee,
+      risk,
       price,
       change,
       changePercent,
@@ -202,7 +216,7 @@ export async function getLiveTefasQuote(symbol) {
       dayLow: price,
       fiftyTwoWeekHigh,
       volume: 0,
-      marketCap: Math.round(price * 1250000000),
+      marketCap,
       pricingType: 'DAILY_NAV',
       navDate: latestItem.tarih ? formatDateTr(latestItem.tarih) : new Date().toLocaleDateString('tr-TR'),
       returns: {
