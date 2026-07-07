@@ -645,16 +645,25 @@ export const NotificationsDrawer: React.FC = () => {
                             )}
                           </div>
 
-                          <span className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-bold text-[11px] ml-auto">
-                            <span>{language === 'tr' ? 'Hisse Detayı' : 'View'}</span>
-                            <ArrowUpRight className="w-3 h-3" />
-                          </span>
+                          {!al.notes && (
+                            <span className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-bold text-[11px] ml-auto">
+                              <span>{language === 'tr' ? 'Hisse Detayı' : 'View'}</span>
+                              <ArrowUpRight className="w-3 h-3" />
+                            </span>
+                          )}
                         </div>
 
+                        {/* Description / Notes aligned inline with Asset Detail link */}
                         {al.notes && (
-                          <p className="text-[11px] text-slate-400 italic">
-                            "{al.notes}"
-                          </p>
+                          <div className="flex items-center justify-between gap-2 text-xs">
+                            <p className="text-[11px] text-slate-400 italic truncate min-w-0 flex-1" title={al.notes}>
+                              "{al.notes}"
+                            </p>
+                            <span className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-bold text-[11px] shrink-0 ml-auto">
+                              <span>{language === 'tr' ? 'Hisse Detayı' : 'View'}</span>
+                              <ArrowUpRight className="w-3 h-3" />
+                            </span>
+                          </div>
                         )}
                       </div>
                     );
