@@ -94,7 +94,7 @@ export const SimilarStocks: React.FC<SimilarStocksProps> = ({ currentSymbol }) =
               className="bg-[#141b27] hover:bg-[#182030] p-4 rounded-xl flex flex-col justify-between gap-3 cursor-pointer transition shadow-sm group"
             >
               {/* Top Row: Symbol, Star & Sector Badge */}
-              <div className="flex items-start justify-between gap-2 pb-2">
+              <div className="flex items-start justify-between gap-2 pb-3 border-b border-white/[0.08] group-hover:border-white/[0.12] transition">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-[#222d42] flex items-center justify-center font-mono font-black text-xs text-slate-100 group-hover:bg-emerald-500/20 group-hover:text-emerald-400 transition">
                     {peer.symbol.replace('.IS', '').substring(0, 3)}
