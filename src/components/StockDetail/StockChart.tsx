@@ -1041,14 +1041,9 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
                 {symbol.replace('.IS', '').substring(0, 3)}
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono font-black text-lg text-white">
-                    {symbol.replace('.IS', '')}
-                  </span>
-                  <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-[#182030] text-emerald-400">
-                    Pro Terminal
-                  </span>
-                </div>
+                <span className="font-mono font-black text-lg text-white block leading-tight">
+                  {symbol.replace('.IS', '')}
+                </span>
                 <span className="text-xs text-slate-400 font-sans">
                   Gelişmiş Teknik Analiz & Göstergeler
                 </span>
