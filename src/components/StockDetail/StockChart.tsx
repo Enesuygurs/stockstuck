@@ -17,6 +17,8 @@ import {
   Layers,
   ArrowUpRight,
   ArrowDownRight,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 
 export interface TimeframePerformance {
@@ -84,14 +86,22 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fullCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Reset measurement when timeframe or symbol changes
+  // Fullscreen Zoom & Pan State
+  const [zoomRange, setZoomRange] = useState<{ start: number; end: number } | null>(null);
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStartX, setPanStartX] = useState<number | null>(null);
+  const [panInitialRange, setPanInitialRange] = useState<{ start: number; end: number } | null>(null);
+
+  // Reset measurement and zoom when timeframe or symbol changes
   useEffect(() => {
     setMeasureStartIdx(null);
     setMeasureEndIdx(null);
     setIsDraggingMeasure(false);
+    setZoomRange(null);
+    setIsPanning(false);
   }, [symbol, timeframe]);
 
-  // ESC key to close full screen or reset measurement
+  // ESC key to reset zoom, reset measurement, or close fullscreen
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -99,6 +109,9 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
           setMeasureStartIdx(null);
           setMeasureEndIdx(null);
           setIsMeasuring(false);
+        } else if (zoomRange !== null) {
+          setZoomRange(null);
+          setIsPanning(false);
         } else if (isFullScreen) {
           setIsFullScreen(false);
         }
@@ -106,7 +119,97 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isFullScreen, measureStartIdx, isMeasuring]);
+  }, [isFullScreen, measureStartIdx, isMeasuring, zoomRange]);
+
+  // Fullscreen body scroll lock and chart zoom via mouse wheel
+  useEffect(() => {
+    if (!isFullScreen) return;
+
+    // Lock background page scroll
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleWheelEvent = (e: WheelEvent) => {
+      // Prevent background webpage from scrolling up/down
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (!candles || candles.length < 6) return;
+
+      const total = candles.length;
+      const currentStart = zoomRange ? zoomRange.start : 0;
+      const currentEnd = zoomRange ? zoomRange.end : total - 1;
+      const currentCount = currentEnd - currentStart + 1;
+
+      // Mouse anchor fraction across canvas width
+      let anchorPct = 0.7;
+      const canvas = fullCanvasRef.current;
+      if (canvas) {
+        const rect = canvas.getBoundingClientRect();
+        const paddingLeft = 15;
+        const paddingRight = 70;
+        const chartWidth = rect.width - paddingLeft - paddingRight;
+        const mouseX = e.clientX - rect.left - paddingLeft;
+        if (chartWidth > 0) {
+          anchorPct = Math.max(0, Math.min(1, mouseX / chartWidth));
+        }
+      }
+
+      const zoomIn = e.deltaY < 0;
+      const step = Math.max(2, Math.round(currentCount * 0.15));
+
+      let newCount = zoomIn ? currentCount - step : currentCount + step;
+      const minBars = 8;
+      const maxBars = total;
+
+      newCount = Math.max(minBars, Math.min(maxBars, newCount));
+
+      if (newCount >= total) {
+        setZoomRange(null);
+        return;
+      }
+
+      const diff = currentCount - newCount;
+      const leftShift = Math.round(diff * anchorPct);
+      const rightShift = diff - leftShift;
+
+      let newStart = currentStart + leftShift;
+      let newEnd = currentEnd - rightShift;
+
+      if (newStart < 0) {
+        newEnd = Math.min(total - 1, newEnd - newStart);
+        newStart = 0;
+      }
+      if (newEnd >= total) {
+        newStart = Math.max(0, newStart - (newEnd - (total - 1)));
+        newEnd = total - 1;
+      }
+
+      if (newEnd - newStart + 1 < minBars) return;
+
+      setZoomRange({ start: newStart, end: newEnd });
+    };
+
+    window.addEventListener('wheel', handleWheelEvent, { passive: false });
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('wheel', handleWheelEvent);
+    };
+  }, [isFullScreen, candles, zoomRange]);
+
+  // Global mouse up for chart panning release
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isPanning) {
+        setIsPanning(false);
+        setPanStartX(null);
+        setPanInitialRange(null);
+      }
+    };
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, [isPanning]);
 
   const [chartMeta, setChartMeta] = useState<any>(null);
 
@@ -278,6 +381,7 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
       enableBollinger: boolean;
       enableVolume: boolean;
       enableRSI: boolean;
+      zoomRange?: { start: number; end: number } | null;
     }
   ) => {
     if (!canvas || candles.length === 0) return;
@@ -303,8 +407,13 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
     ctx.fillStyle = '#0c1018';
     ctx.fillRect(0, 0, width, height);
 
-    let minPrice = Math.min(...candles.map(c => c.low));
-    let maxPrice = Math.max(...candles.map(c => c.high));
+    const startIdx = opts.zoomRange ? opts.zoomRange.start : 0;
+    const endIdx = opts.zoomRange ? opts.zoomRange.end : candles.length - 1;
+    const visibleCount = endIdx - startIdx + 1;
+    const visibleCandles = candles.slice(startIdx, endIdx + 1);
+
+    let minPrice = Math.min(...visibleCandles.map(c => c.low));
+    let maxPrice = Math.max(...visibleCandles.map(c => c.high));
     const priceRange = maxPrice - minPrice || 1;
     minPrice -= priceRange * 0.04;
     maxPrice += priceRange * 0.04;
@@ -313,8 +422,8 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
       return padding.top + (1 - (val - minPrice) / (maxPrice - minPrice)) * mainChartHeight;
     };
 
-    const barWidth = Math.max(2, (width - padding.left - padding.right) / candles.length);
-    const getX = (idx: number) => padding.left + idx * barWidth + barWidth / 2;
+    const barWidth = Math.max(2, (width - padding.left - padding.right) / visibleCount);
+    const getX = (idx: number) => padding.left + (idx - startIdx) * barWidth + barWidth / 2;
 
     // Price Grid Lines
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
@@ -339,22 +448,22 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
       ctx.beginPath();
       ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
       ctx.lineWidth = 1.2;
-      for (let i = 0; i < candles.length; i++) {
+      for (let i = startIdx; i <= endIdx; i++) {
         if (bollingerBands[i]) {
           const x = getX(i);
           const y = getY(bollingerBands[i]!.upper);
-          if (i === 0 || !bollingerBands[i - 1]) ctx.moveTo(x, y);
+          if (i === startIdx || !bollingerBands[i - 1]) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
         }
       }
       ctx.stroke();
 
       ctx.beginPath();
-      for (let i = 0; i < candles.length; i++) {
+      for (let i = startIdx; i <= endIdx; i++) {
         if (bollingerBands[i]) {
           const x = getX(i);
           const y = getY(bollingerBands[i]!.lower);
-          if (i === 0 || !bollingerBands[i - 1]) ctx.moveTo(x, y);
+          if (i === startIdx || !bollingerBands[i - 1]) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
         }
       }
@@ -367,7 +476,7 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
       ctx.strokeStyle = color;
       ctx.lineWidth = 1.6;
       let started = false;
-      for (let i = 0; i < candles.length; i++) {
+      for (let i = startIdx; i <= endIdx; i++) {
         if (series[i] !== null) {
           const x = getX(i);
           const y = getY(series[i]!);
@@ -388,7 +497,8 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
 
     // Candles / Area / Line
     if (chartType === 'candlestick') {
-      candles.forEach((c, idx) => {
+      for (let idx = startIdx; idx <= endIdx; idx++) {
+        const c = candles[idx];
         const isUp = c.close >= c.open;
         const color = isUp ? '#10b981' : '#f43f5e';
         const x = getX(idx);
@@ -409,18 +519,18 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
         const bodyHeight = Math.max(1.5, Math.abs(yOpen - yClose));
         const candleWidth = Math.max(2, barWidth * 0.72);
         ctx.fillRect(x - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
-      });
+      }
     } else if (chartType === 'area') {
       ctx.beginPath();
-      const firstX = getX(0);
-      const firstY = getY(candles[0].close);
+      const firstX = getX(startIdx);
+      const firstY = getY(candles[startIdx].close);
       ctx.moveTo(firstX, firstY);
 
-      for (let i = 1; i < candles.length; i++) {
+      for (let i = startIdx + 1; i <= endIdx; i++) {
         ctx.lineTo(getX(i), getY(candles[i].close));
       }
 
-      const lastX = getX(candles.length - 1);
+      const lastX = getX(endIdx);
       const bottomY = padding.top + mainChartHeight;
       ctx.lineTo(lastX, bottomY);
       ctx.lineTo(firstX, bottomY);
@@ -434,7 +544,7 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
 
       ctx.beginPath();
       ctx.moveTo(firstX, firstY);
-      for (let i = 1; i < candles.length; i++) {
+      for (let i = startIdx + 1; i <= endIdx; i++) {
         ctx.lineTo(getX(i), getY(candles[i].close));
       }
       ctx.strokeStyle = '#10b981';
@@ -442,8 +552,8 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
       ctx.stroke();
     } else if (chartType === 'line') {
       ctx.beginPath();
-      ctx.moveTo(getX(0), getY(candles[0].close));
-      for (let i = 1; i < candles.length; i++) {
+      ctx.moveTo(getX(startIdx), getY(candles[startIdx].close));
+      for (let i = startIdx + 1; i <= endIdx; i++) {
         ctx.lineTo(getX(i), getY(candles[i].close));
       }
       ctx.strokeStyle = '#38bdf8';
@@ -455,9 +565,10 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
     if (opts.enableVolume) {
       const volTop = padding.top + mainChartHeight + 10;
       const volDrawHeight = volumeHeight - 15;
-      const maxVolume = Math.max(...candles.map(c => c.volume || 0)) || 1;
+      const maxVolume = Math.max(...visibleCandles.map(c => c.volume || 0)) || 1;
 
-      candles.forEach((c, idx) => {
+      for (let idx = startIdx; idx <= endIdx; idx++) {
+        const c = candles[idx];
         const isUp = c.close >= c.open;
         const color = isUp ? 'rgba(16, 185, 129, 0.45)' : 'rgba(244, 63, 94, 0.45)';
         const x = getX(idx);
@@ -467,7 +578,7 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
 
         ctx.fillStyle = color;
         ctx.fillRect(x - candleWidth / 2, y, candleWidth, barH);
-      });
+      }
     }
 
     // RSI Subgraph
@@ -505,7 +616,7 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
       ctx.strokeStyle = '#a855f7';
       ctx.lineWidth = 1.8;
       let started = false;
-      for (let i = 0; i < candles.length; i++) {
+      for (let i = startIdx; i <= endIdx; i++) {
         if (rsiSeries[i] !== null) {
           const x = getX(i);
           const y = rsiTop + (1 - rsiSeries[i]! / 100) * rsiDrawHeight;
@@ -530,94 +641,100 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
       if (activeEnd !== null && candles[activeEnd]) {
         const minI = Math.min(measureStartIdx, activeEnd);
         const maxI = Math.max(measureStartIdx, activeEnd);
-        const x1 = getX(minI);
-        const x2 = getX(maxI);
-        const cStart = candles[minI]; // Strictly chronological start
-        const cEnd = candles[maxI];   // Strictly chronological end
-        const isUp = cEnd.close >= cStart.close;
-        const color = isUp ? '#10b981' : '#f43f5e';
-        const bgRgba = isUp ? 'rgba(16, 185, 129, ' : 'rgba(244, 63, 94, ';
 
-        // Shaded range background overlay
-        ctx.fillStyle = `${bgRgba}0.14)`;
-        ctx.fillRect(x1 - barWidth / 2, padding.top, (x2 - x1) + barWidth, mainChartHeight);
+        // Only draw if within visible range bounds
+        if (maxI >= startIdx && minI <= endIdx) {
+          const renderMinI = Math.max(startIdx, minI);
+          const renderMaxI = Math.min(endIdx, maxI);
+          const x1 = getX(renderMinI);
+          const x2 = getX(renderMaxI);
+          const cStart = candles[minI]; // Strictly chronological start
+          const cEnd = candles[maxI];   // Strictly chronological end
+          const isUp = cEnd.close >= cStart.close;
+          const color = isUp ? '#10b981' : '#f43f5e';
+          const bgRgba = isUp ? 'rgba(16, 185, 129, ' : 'rgba(244, 63, 94, ';
 
-        // Vertical boundary dashed guidelines
-        ctx.strokeStyle = `${bgRgba}0.7)`;
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([4, 4]);
+          // Shaded range background overlay
+          ctx.fillStyle = `${bgRgba}0.14)`;
+          ctx.fillRect(x1 - barWidth / 2, padding.top, (x2 - x1) + barWidth, mainChartHeight);
 
-        ctx.beginPath();
-        ctx.moveTo(x1 - barWidth / 2, padding.top);
-        ctx.lineTo(x1 - barWidth / 2, padding.top + mainChartHeight);
-        ctx.moveTo(x2 + barWidth / 2, padding.top);
-        ctx.lineTo(x2 + barWidth / 2, padding.top + mainChartHeight);
-        ctx.stroke();
+          // Vertical boundary dashed guidelines
+          ctx.strokeStyle = `${bgRgba}0.7)`;
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 4]);
 
-        // Slope trajectory vector line (Always moves forward in time from left x1 to right x2)
-        const yStart = getY(cStart.close);
-        const yEnd = getY(cEnd.close);
-        const xStartPoint = x1;
-        const xEndPoint = x2;
+          ctx.beginPath();
+          ctx.moveTo(x1 - barWidth / 2, padding.top);
+          ctx.lineTo(x1 - barWidth / 2, padding.top + mainChartHeight);
+          ctx.moveTo(x2 + barWidth / 2, padding.top);
+          ctx.lineTo(x2 + barWidth / 2, padding.top + mainChartHeight);
+          ctx.stroke();
 
-        ctx.beginPath();
-        ctx.setLineDash([]);
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2.5;
-        ctx.moveTo(xStartPoint, yStart);
-        ctx.lineTo(xEndPoint, yEnd);
-        ctx.stroke();
+          // Slope trajectory vector line (Always moves forward in time from left x1 to right x2)
+          const yStart = getY(cStart.close);
+          const yEnd = getY(cEnd.close);
+          const xStartPoint = x1;
+          const xEndPoint = x2;
 
-        // Start Point Marker (Circle)
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(xStartPoint, yStart, 5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
+          ctx.beginPath();
+          ctx.setLineDash([]);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2.5;
+          ctx.moveTo(xStartPoint, yStart);
+          ctx.lineTo(xEndPoint, yEnd);
+          ctx.stroke();
 
-        // End Point Marker (Circle)
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(xEndPoint, yEnd, 5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        ctx.stroke();
+          // Start Point Marker (Circle)
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(xStartPoint, yStart, 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
 
-        // Floating On-Canvas Measurement Pill
-        const diffP = cEnd.close - cStart.close;
-        const diffPct = cStart.close > 0 ? (diffP / cStart.close) * 100 : 0;
-        const isMicro = cStart.close < 10;
-        const diffDecimals = isFund ? 6 : (isMicro ? 4 : 2);
-        const pillText = `${isUp ? '+' : ''}${diffP.toFixed(diffDecimals)} (${isUp ? '+' : ''}${diffPct.toFixed(2)}%)`;
-        
-        ctx.font = 'bold 12px JetBrains Mono, monospace';
-        const pillTextWidth = ctx.measureText(pillText).width;
-        const pillPad = 10;
-        const pillW = pillTextWidth + pillPad * 2;
-        const pillH = 24;
-        const midX = Math.max(padding.left + pillW / 2, Math.min(width - padding.right - pillW / 2, (xStartPoint + xEndPoint) / 2));
-        const midY = Math.max(padding.top + pillH / 2, Math.min(padding.top + mainChartHeight - pillH / 2, (yStart + yEnd) / 2 - 18));
+          // End Point Marker (Circle)
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(xEndPoint, yEnd, 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
 
-        ctx.fillStyle = isUp ? 'rgba(6, 78, 59, 0.95)' : 'rgba(136, 19, 55, 0.95)';
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.roundRect(midX - pillW / 2, midY - pillH / 2, pillW, pillH, 6);
-        ctx.fill();
-        ctx.stroke();
+          // Floating On-Canvas Measurement Pill
+          const diffP = cEnd.close - cStart.close;
+          const diffPct = cStart.close > 0 ? (diffP / cStart.close) * 100 : 0;
+          const isMicro = cStart.close < 10;
+          const diffDecimals = isFund ? 6 : (isMicro ? 4 : 2);
+          const pillText = `${isUp ? '+' : ''}${diffP.toFixed(diffDecimals)} (${isUp ? '+' : ''}${diffPct.toFixed(2)}%)`;
+          
+          ctx.font = 'bold 12px JetBrains Mono, monospace';
+          const pillTextWidth = ctx.measureText(pillText).width;
+          const pillPad = 10;
+          const pillW = pillTextWidth + pillPad * 2;
+          const pillH = 24;
+          const midX = Math.max(padding.left + pillW / 2, Math.min(width - padding.right - pillW / 2, (xStartPoint + xEndPoint) / 2));
+          const midY = Math.max(padding.top + pillH / 2, Math.min(padding.top + mainChartHeight - pillH / 2, (yStart + yEnd) / 2 - 18));
 
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(pillText, midX, midY);
+          ctx.fillStyle = isUp ? 'rgba(6, 78, 59, 0.95)' : 'rgba(136, 19, 55, 0.95)';
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(midX - pillW / 2, midY - pillH / 2, pillW, pillH, 6);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(pillText, midX, midY);
+        }
       }
     }
 
     // Crosshair & HUD
-    if (activeHoverIdx !== null && candles[activeHoverIdx]) {
+    if (activeHoverIdx !== null && activeHoverIdx >= startIdx && activeHoverIdx <= endIdx && candles[activeHoverIdx]) {
       const activeX = getX(activeHoverIdx);
       const activeCandle = candles[activeHoverIdx];
       const activeY = getY(activeCandle.close);
@@ -713,9 +830,10 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
         enableBollinger: showBollinger,
         enableVolume: showVolume,
         enableRSI: showRSI,
+        zoomRange,
       });
     }
-  }, [isFullScreen, candles, chartType, showSMA20, showSMA50, showSMA200, showBollinger, showVolume, showRSI, fullHoverIndex, measureStartIdx, measureEndIdx]);
+  }, [isFullScreen, candles, chartType, showSMA20, showSMA50, showSMA200, showBollinger, showVolume, showRSI, fullHoverIndex, measureStartIdx, measureEndIdx, zoomRange]);
 
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>, isFull = false) => {
     const canvas = isFull ? fullCanvasRef.current : canvasRef.current;
@@ -723,14 +841,22 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
 
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left - 15;
-    const barWidth = (rect.width - 85) / candles.length;
-    const idx = Math.max(0, Math.min(candles.length - 1, Math.floor(x / barWidth)));
+    const startIdx = (isFull && zoomRange) ? zoomRange.start : 0;
+    const endIdx = (isFull && zoomRange) ? zoomRange.end : candles.length - 1;
+    const visibleCount = endIdx - startIdx + 1;
+    const barWidth = (rect.width - 85) / visibleCount;
+    const relativeIdx = Math.floor(x / barWidth);
+    const idx = Math.max(startIdx, Math.min(endIdx, startIdx + relativeIdx));
 
     if (isMeasuring || e.shiftKey) {
       setIsMeasuring(true);
       setMeasureStartIdx(idx);
       setMeasureEndIdx(idx);
       setIsDraggingMeasure(true);
+    } else if (isFull && zoomRange !== null) {
+      setIsPanning(true);
+      setPanStartX(e.clientX);
+      setPanInitialRange({ ...zoomRange });
     }
   };
 
@@ -740,20 +866,48 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
 
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left - 15;
-    const barWidth = (rect.width - 85) / candles.length;
-    const idx = Math.max(0, Math.min(candles.length - 1, Math.floor(x / barWidth)));
+    const startIdx = (isFull && zoomRange) ? zoomRange.start : 0;
+    const endIdx = (isFull && zoomRange) ? zoomRange.end : candles.length - 1;
+    const visibleCount = endIdx - startIdx + 1;
+    const barWidth = (rect.width - 85) / visibleCount;
+    const relativeIdx = Math.floor(x / barWidth);
+    const idx = Math.max(startIdx, Math.min(endIdx, startIdx + relativeIdx));
 
     if (isFull) setFullHoverIndex(idx);
     else setHoverIndex(idx);
 
     if (isDraggingMeasure && measureStartIdx !== null) {
       setMeasureEndIdx(idx);
+    } else if (isFull && isPanning && panStartX !== null && panInitialRange !== null) {
+      const deltaBars = Math.round((panStartX - e.clientX) / barWidth);
+
+      if (deltaBars !== 0) {
+        const total = candles.length;
+        const count = panInitialRange.end - panInitialRange.start + 1;
+        let newStart = panInitialRange.start + deltaBars;
+        let newEnd = panInitialRange.end + deltaBars;
+
+        if (newStart < 0) {
+          newStart = 0;
+          newEnd = count - 1;
+        } else if (newEnd >= total) {
+          newEnd = total - 1;
+          newStart = total - count;
+        }
+
+        setZoomRange({ start: newStart, end: newEnd });
+      }
     }
   };
 
   const handleCanvasMouseUp = () => {
     if (isDraggingMeasure) {
       setIsDraggingMeasure(false);
+    }
+    if (isPanning) {
+      setIsPanning(false);
+      setPanStartX(null);
+      setPanInitialRange(null);
     }
   };
 
@@ -765,8 +919,12 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
 
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left - 15;
-    const barWidth = (rect.width - 85) / candles.length;
-    const idx = Math.max(0, Math.min(candles.length - 1, Math.floor(x / barWidth)));
+    const startIdx = (isFull && zoomRange) ? zoomRange.start : 0;
+    const endIdx = (isFull && zoomRange) ? zoomRange.end : candles.length - 1;
+    const visibleCount = endIdx - startIdx + 1;
+    const barWidth = (rect.width - 85) / visibleCount;
+    const relativeIdx = Math.floor(x / barWidth);
+    const idx = Math.max(startIdx, Math.min(endIdx, startIdx + relativeIdx));
 
     if (measureStartIdx === null) {
       setMeasureStartIdx(idx);
@@ -780,7 +938,7 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
   };
 
   const activeHoverCandle = hoverIndex !== null ? candles[hoverIndex] : candles[candles.length - 1];
-  const activeFullCandle = fullHoverIndex !== null ? candles[fullHoverIndex] : candles[candles.length - 1];
+  const activeFullCandle = fullHoverIndex !== null ? candles[fullHoverIndex] : (zoomRange ? candles[zoomRange.end] : candles[candles.length - 1]);
 
   return (
     <>
@@ -1176,9 +1334,26 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
                 </button>
               </div>
 
+              {/* Zoom Indicator & Reset Button */}
+              {zoomRange && (
+                <button
+                  onClick={() => setZoomRange(null)}
+                  className="h-10 flex items-center gap-1.5 px-3 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 font-mono text-xs sm:text-sm font-bold transition shadow-sm shrink-0"
+                  title="Grafik Yakınlaştırmasını Sıfırla (Esc)"
+                >
+                  <ZoomIn className="w-3.5 h-3.5 shrink-0" />
+                  <span>%{Math.round((candles.length / (zoomRange.end - zoomRange.start + 1)) * 100)}</span>
+                  <span className="text-[10px] opacity-75 font-normal ml-0.5 underline">Sıfırla</span>
+                </button>
+              )}
+
               {/* Close / Minimize Button */}
               <button
-                onClick={() => setIsFullScreen(false)}
+                onClick={() => {
+                  setIsFullScreen(false);
+                  setZoomRange(null);
+                  setIsPanning(false);
+                }}
                 className="h-10 flex items-center justify-center gap-1.5 px-4 rounded-xl bg-rose-600/20 hover:bg-rose-600 text-rose-400 hover:text-white font-mono font-bold text-xs sm:text-sm transition shadow-sm shrink-0"
                 title="Tam Ekrandan Çık (ESC)"
               >
@@ -1293,7 +1468,15 @@ export const StockChart: React.FC<StockChartProps> = ({ symbol, currency, onPerf
                 setFullHoverIndex(null);
                 if (isDraggingMeasure) setIsDraggingMeasure(false);
               }}
-              className="w-full h-full cursor-crosshair block"
+              className={`w-full h-full block select-none ${
+                isMeasuring
+                  ? 'cursor-crosshair'
+                  : isPanning
+                    ? 'cursor-grabbing'
+                    : zoomRange !== null
+                      ? 'cursor-grab'
+                      : 'cursor-crosshair'
+              }`}
             />
           </div>
         </div>
