@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { api } from '../../services/api';
 import { StockQuote, Candle } from '../../types/stock';
-import { Plus, X, Scale, LineChart, Table, Layers } from 'lucide-react';
+import { Plus, X, Scale, LineChart, Table, Layers, ArrowUpRight } from 'lucide-react';
 
 const COLORS = ['#10b981', '#38bdf8', '#f59e0b', '#a855f7', '#f43f5e'];
 
@@ -323,14 +323,25 @@ export const CompareView: React.FC = () => {
             return (
               <div
                 key={sym}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#141b27] hover:bg-[#182130] transition shadow-xs group"
+                onClick={() => selectStock(sym)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    selectStock(sym);
+                  }
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#141b27] hover:bg-[#182130] hover:border-emerald-500/40 border border-transparent transition shadow-xs group cursor-pointer"
+                title={`${sym} detay sayfasına git`}
               >
                 <span
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  className="w-2.5 h-2.5 rounded-full shrink-0 group-hover:scale-125 transition-transform"
                   style={{ backgroundColor: COLORS[idx % COLORS.length] }}
                 />
-                <span className="font-mono font-black text-xs text-white">
+                <span className="font-mono font-black text-xs text-white group-hover:text-emerald-400 transition-colors flex items-center gap-1">
                   {sym.replace('.IS', '')}
+                  <ArrowUpRight className="w-3 h-3 opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all text-slate-400 group-hover:text-emerald-400" />
                 </span>
                 {seriesItem && (
                   <span className={`font-mono font-bold text-xs ${isPos ? 'text-emerald-400' : 'text-rose-400'}`}>
@@ -339,9 +350,13 @@ export const CompareView: React.FC = () => {
                 )}
                 {compareSymbols.length > 1 && (
                   <button
-                    onClick={() => removeSymbol(sym)}
-                    className="text-slate-500 hover:text-rose-400 p-0.5 rounded transition ml-0.5"
-                    title="Kaldır"
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeSymbol(sym);
+                    }}
+                    className="text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 p-0.5 rounded transition ml-0.5"
+                    title={language === 'tr' ? 'Karşılaştırmadan Kaldır' : 'Remove'}
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -364,7 +379,7 @@ export const CompareView: React.FC = () => {
               type="text"
               value={inputSymbol}
               onChange={(e) => setInputSymbol(e.target.value)}
-              placeholder="Hisse Kodu"
+              placeholder={language === 'tr' ? 'Hisse / Fon Kodu' : 'Ticker / Fund'}
               className="bg-[#141b27] hover:bg-[#182130] focus:bg-[#1c273a] rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 outline-none w-36 font-mono font-semibold transition-colors"
             />
             <button type="submit" className="p-2 bg-[#141b27] hover:bg-[#1f293d] text-slate-300 hover:text-white rounded-xl transition">
@@ -405,9 +420,25 @@ export const CompareView: React.FC = () => {
               const pt = s.points[hoverIndex];
               const isPos = pt ? pt.pct >= 0 : true;
               return (
-                <div key={s.symbol} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#0e1420]">
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                  <span className="font-bold text-white">{s.symbol}:</span>
+                <div
+                  key={s.symbol}
+                  onClick={() => selectStock(s.symbol)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      selectStock(s.symbol);
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#0e1420] hover:bg-[#182130] hover:border-emerald-500/40 border border-transparent transition cursor-pointer group"
+                  title={`${s.symbol} detay sayfasına git`}
+                >
+                  <span className="w-2 h-2 rounded-full shrink-0 group-hover:scale-125 transition-transform" style={{ backgroundColor: s.color }} />
+                  <span className="font-bold text-white group-hover:text-emerald-400 transition-colors flex items-center gap-0.5">
+                    {s.symbol}:
+                    <ArrowUpRight className="w-2.5 h-2.5 opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all text-slate-400 group-hover:text-emerald-400" />
+                  </span>
                   <span className={`font-black ${isPos ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {pt ? `${isPos ? '+' : ''}${pt.pct.toFixed(2)}%` : '-'}
                   </span>
@@ -449,10 +480,18 @@ export const CompareView: React.FC = () => {
                 <th className="py-4 px-5 font-sans">Finansal Metrik</th>
                 {compareSymbols.map((sym, idx) => (
                   <th key={sym} className="py-4 px-5 font-bold">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
-                      <span className="text-white font-mono">{sym}</span>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => selectStock(sym)}
+                      className="inline-flex items-center gap-2 cursor-pointer group hover:text-emerald-400 transition-colors text-left"
+                      title={`${sym} detay sayfasına git`}
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0 group-hover:scale-125 transition-transform" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                      <span className="text-white font-mono group-hover:text-emerald-400 transition-colors flex items-center gap-1">
+                        {sym}
+                        <ArrowUpRight className="w-3 h-3 opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all text-slate-400 group-hover:text-emerald-400" />
+                      </span>
+                    </button>
                   </th>
                 ))}
               </tr>
