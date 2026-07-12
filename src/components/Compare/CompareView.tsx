@@ -284,10 +284,10 @@ export const CompareView: React.FC = () => {
           <Scale className="w-6 h-6 text-emerald-400 shrink-0" />
           <div className="flex flex-col justify-center">
             <h1 className="text-lg sm:text-xl font-black text-white tracking-tight leading-none">
-              {language === 'tr' ? 'Hisse Karşılaştırma Laboratuvarı' : 'Stock Comparison'}
+              {language === 'tr' ? 'Varlık Karşılaştırma Laboratuvarı' : 'Asset Comparison Lab'}
             </h1>
             <p className="text-xs text-slate-400 mt-1 leading-tight">
-              {language === 'tr' ? 'Hisselerin normalize getiri eğrilerini ortak zaman ekseninde karşılaştırın' : 'Compare normalized return curves on a unified timeline'}
+              {language === 'tr' ? 'Hisse, fon ve tüm varlıkların normalize getiri eğrilerini ortak zaman ekseninde karşılaştırın' : 'Compare normalized return curves of stocks, funds, and assets on a unified timeline'}
             </p>
           </div>
         </div>
@@ -313,7 +313,7 @@ export const CompareView: React.FC = () => {
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1.5 text-xs text-slate-400 font-bold uppercase tracking-wider mr-1">
             <Layers className="w-3.5 h-3.5 text-slate-400" />
-            <span>Hisseler:</span>
+            <span>{language === 'tr' ? 'Varlıklar:' : 'Assets:'}</span>
           </div>
 
           {compareSymbols.map((sym, idx) => {
@@ -379,10 +379,11 @@ export const CompareView: React.FC = () => {
               type="text"
               value={inputSymbol}
               onChange={(e) => setInputSymbol(e.target.value)}
-              placeholder={language === 'tr' ? 'Hisse / Fon Kodu' : 'Ticker / Fund'}
-              className="bg-[#141b27] hover:bg-[#182130] focus:bg-[#1c273a] rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 outline-none w-36 font-mono font-semibold transition-colors"
+              placeholder={language === 'tr' ? 'Sembol / Kod (Hisse, Fon)' : 'Symbol / Ticker'}
+              title={language === 'tr' ? 'Hisse, fon veya varlık sembolü girin (Örn: THYAO, THF, NVDA)' : 'Enter stock, fund or asset symbol (e.g. THYAO, THF, NVDA)'}
+              className="bg-[#141b27] hover:bg-[#182130] focus:bg-[#1c273a] rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 outline-none w-48 font-mono font-semibold transition-colors"
             />
-            <button type="submit" className="p-2 bg-[#141b27] hover:bg-[#1f293d] text-slate-300 hover:text-white rounded-xl transition">
+            <button type="submit" className="p-2 bg-[#141b27] hover:bg-[#1f293d] text-slate-300 hover:text-white rounded-xl transition" title={language === 'tr' ? 'Listeye Ekle' : 'Add to List'}>
               <Plus className="w-3.5 h-3.5" />
             </button>
           </form>
