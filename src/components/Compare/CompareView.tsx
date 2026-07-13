@@ -381,7 +381,7 @@ export const CompareView: React.FC = () => {
               onChange={(e) => setInputSymbol(e.target.value)}
               placeholder={language === 'tr' ? 'Sembol / Kod (Hisse, Fon)' : 'Symbol / Ticker'}
               title={language === 'tr' ? 'Hisse, fon veya varlık sembolü girin (Örn: THYAO, THF, NVDA)' : 'Enter stock, fund or asset symbol (e.g. THYAO, THF, NVDA)'}
-              className="bg-[#141b27] hover:bg-[#182130] focus:bg-[#1c273a] rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 outline-none w-48 font-mono font-semibold transition-colors"
+              className="bg-[#141b27] hover:bg-[#182130] focus:bg-[#1c273a] rounded-xl px-3.5 py-1.5 text-xs text-white placeholder-slate-400 placeholder:font-normal placeholder:font-sans outline-none w-60 sm:w-64 font-mono font-semibold uppercase transition-all"
             />
             <button type="submit" className="p-2 bg-[#141b27] hover:bg-[#1f293d] text-slate-300 hover:text-white rounded-xl transition" title={language === 'tr' ? 'Listeye Ekle' : 'Add to List'}>
               <Plus className="w-3.5 h-3.5" />
