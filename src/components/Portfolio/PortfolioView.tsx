@@ -1889,8 +1889,8 @@ export const PortfolioView: React.FC = () => {
                   )}
                 </div>
 
-                {/* Real-time Verified Asset Info Badge */}
-                {symbolValidated === true && validatedStockInfo && (
+                {/* Real-time Verified Asset Info Badge (Only on BUY to prevent redundant info on SELL) */}
+                {modalMode === 'BUY' && symbolValidated === true && validatedStockInfo && (
                   <div className="flex items-center justify-between p-2.5 px-3 rounded-xl bg-emerald-500/10 text-xs">
                     <div className="flex items-center gap-2 overflow-hidden">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
