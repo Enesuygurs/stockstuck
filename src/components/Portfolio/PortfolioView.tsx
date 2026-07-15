@@ -358,6 +358,36 @@ export const PortfolioView: React.FC = () => {
       };
     });
 
+    // Calculate realized PnL and closed trades cost from tradeHistory
+    let totalRealizedUsdPnl = 0;
+    let totalRealizedTryPnl = 0;
+    let totalClosedUsdCost = 0;
+    let totalClosedTryCost = 0;
+
+    tradeHistory.forEach((t) => {
+      if (t.type === 'SELL') {
+        const isTRY = t.currency === 'TRY' || t.symbol.endsWith('.IS');
+        const pnl = t.realizedPnl || 0;
+        const totalVal = t.shares * t.price;
+        const totalCost = Math.max(0, totalVal - pnl);
+        if (isTRY) {
+          totalRealizedTryPnl += pnl;
+          totalClosedTryCost += totalCost;
+        } else {
+          totalRealizedUsdPnl += pnl;
+          totalClosedUsdCost += totalCost;
+        }
+      }
+    });
+
+    // If portfolio has no open positions, capital and value reflect closed trades & realized cash
+    if (portfolio.length === 0 && tradeHistory.length > 0) {
+      totalUsdCost = totalClosedUsdCost;
+      totalUsdValue = totalClosedUsdCost + totalRealizedUsdPnl;
+      totalTryCost = totalClosedTryCost;
+      totalTryValue = totalClosedTryCost + totalRealizedTryPnl;
+    }
+
     // Asset allocation percentages
     const totalUsdPortValue = totalUsdValue || 1;
     const totalTryPortValue = totalTryValue || 1;
@@ -378,12 +408,46 @@ export const PortfolioView: React.FC = () => {
       }
     });
 
+    // If no open positions, find best closed trade from tradeHistory
+    if (!bestPerformer && tradeHistory.length > 0) {
+      const sellTrades = tradeHistory.filter(t => t.type === 'SELL');
+      if (sellTrades.length > 0) {
+        const topTrade = [...sellTrades].sort((a, b) => (b.realizedPnl || 0) - (a.realizedPnl || 0))[0];
+        const isTRY = topTrade.currency === 'TRY' || topTrade.symbol.endsWith('.IS');
+        const pnl = topTrade.realizedPnl || 0;
+        const totalVal = topTrade.shares * topTrade.price;
+        const cost = Math.max(1, totalVal - pnl);
+        const pnlPct = cost > 0 ? (pnl / cost) * 100 : 0;
+        bestPerformer = {
+          symbol: topTrade.symbol,
+          shares: topTrade.shares,
+          avgBuyPrice: topTrade.price,
+          curPrice: topTrade.price,
+          isTRY,
+          cost,
+          value: totalVal,
+          pnl,
+          pnlPct,
+          weight: 100,
+          change24hPct: 0,
+          change24hVal: 0,
+          buyDate: topTrade.date,
+          currency: topTrade.currency,
+          quote: portfolioQuotes[topTrade.symbol] || watchlistQuotes[topTrade.symbol]
+        };
+      }
+    }
+
     // Sector allocation
     const sectorMap: Record<string, number> = {};
-    positionsWithWeights.forEach(p => {
-      const sec = p.quote?.subSector || p.quote?.sector || (p.isTRY ? 'BIST Hisse' : 'Global Hisse');
-      sectorMap[sec] = (sectorMap[sec] || 0) + (p.isTRY ? p.value : p.value * usdTryRate);
-    });
+    if (positionsWithWeights.length > 0) {
+      positionsWithWeights.forEach(p => {
+        const sec = p.quote?.subSector || p.quote?.sector || (p.isTRY ? 'BIST Hisse' : 'Global Hisse');
+        sectorMap[sec] = (sectorMap[sec] || 0) + (p.isTRY ? p.value : p.value * usdTryRate);
+      });
+    } else if (tradeHistory.length > 0) {
+      sectorMap['Nakit & Realize Bakiye'] = (totalUsdValue * usdTryRate) + totalTryValue;
+    }
 
     const totalAllValueTRY = (totalUsdValue * usdTryRate) + totalTryValue;
     const totalAllCostTRY = (totalUsdCost * usdTryRate) + totalTryCost;
@@ -421,7 +485,7 @@ export const PortfolioView: React.FC = () => {
       bestPerformer,
       sectorBreakdown,
     };
-  }, [portfolio, portfolioQuotes, usdTryRate]);
+  }, [portfolio, tradeHistory, portfolioQuotes, usdTryRate]);
 
   const sortedPositions = useMemo(() => {
     return [...portfolioStats.positions].sort((a, b) => {
@@ -454,9 +518,15 @@ export const PortfolioView: React.FC = () => {
     });
   }, [tradeHistory, tradeSortField, tradeSortOrder]);
 
-  // Real Multi-Asset Historical Equity Curve Fetcher
+  // Real Multi-Asset Historical Equity Curve Fetcher (Includes Open & Closed Trade History)
   useEffect(() => {
-    if (portfolio.length === 0) {
+    // 1. Gather all active and past symbols
+    const symbolSet = new Set<string>();
+    portfolio.forEach(p => symbolSet.add(p.symbol));
+    tradeHistory.forEach(t => symbolSet.add(t.symbol));
+    const trackedSymbols = Array.from(symbolSet).filter(Boolean);
+
+    if (trackedSymbols.length === 0) {
       setEquityPoints([]);
       return;
     }
@@ -466,7 +536,7 @@ export const PortfolioView: React.FC = () => {
     const loadRealEquityCurve = async () => {
       setEquityLoading(true);
       try {
-        const chartPromises = portfolio.map(pos => api.getChartData(pos.symbol, range, '1d'));
+        const chartPromises = trackedSymbols.map(sym => api.getChartData(sym, range, '1d').catch(() => null));
         const chartResults = await Promise.all(chartPromises);
 
         // Group all candles by YYYY-MM-DD for each symbol for 100% calendar alignment
@@ -474,14 +544,14 @@ export const PortfolioView: React.FC = () => {
         const allDatesSet = new Set<string>();
         const dateTimestampMap: Record<string, number> = {};
 
-        portfolio.forEach((pos, posIdx) => {
+        trackedSymbols.forEach((sym, posIdx) => {
           const chart = chartResults[posIdx];
           const cList = chart?.candles || [];
-          symbolDateMap[pos.symbol] = {};
+          symbolDateMap[sym] = {};
 
           cList.forEach(c => {
             const dateKey = new Date(c.time * 1000).toISOString().split('T')[0];
-            symbolDateMap[pos.symbol][dateKey] = c.close;
+            symbolDateMap[sym][dateKey] = c.close;
             allDatesSet.add(dateKey);
             dateTimestampMap[dateKey] = c.time;
           });
@@ -490,48 +560,153 @@ export const PortfolioView: React.FC = () => {
         // Sorted unique calendar dates
         const sortedDates = Array.from(allDatesSet).sort();
 
-        // Find the earliest buy date across all positions
-        const buyDates = portfolio.map(p => p.buyDate || new Date().toISOString().split('T')[0]).sort();
-        const earliestBuyDate = buyDates[0] || new Date().toISOString().split('T')[0];
+        // Find the earliest activity date across all positions and trades
+        const allActivityDates: string[] = [];
+        portfolio.forEach(p => { if (p.buyDate) allActivityDates.push(p.buyDate); });
+        tradeHistory.forEach(t => { if (t.date) allActivityDates.push(t.date); });
+        allActivityDates.sort();
 
-        // Filter dates: the portfolio curve ONLY starts from the day the user made their first purchase!
-        const validDates = sortedDates.filter((d: string) => d >= earliestBuyDate);
+        const todayStr = new Date().toISOString().split('T')[0];
+        const earliestActivityDate = allActivityDates[0] || sortedDates[0] || todayStr;
 
-        // If no trading days occurred yet since buyDate (e.g. bought today after hours or on weekend)
+        // Filter dates: the portfolio curve starts from the day the user made their first trade/purchase
+        let validDates = sortedDates.filter((d: string) => d >= earliestActivityDate);
+
         if (validDates.length === 0) {
-          validDates.push(sortedDates[sortedDates.length - 1] || new Date().toISOString().split('T')[0]);
+          if (sortedDates.length > 0) {
+            validDates = [sortedDates[sortedDates.length - 1]];
+          } else {
+            validDates = [todayStr];
+          }
         }
 
         const points: { timestamp: number; date: string; value: number; pnlPct: number }[] = [];
-        const totalInitialCostTRY = portfolioStats.totalAllCostTRY || 1;
 
-        // Carry forward previous close if market was closed on that day
+        // Precompute cost and details for each tracked symbol
+        const symbolDetails: Record<string, { avgBuyPrice: number; buyDate: string; isTRY: boolean }> = {};
+        trackedSymbols.forEach(sym => {
+          const pos = portfolio.find(p => p.symbol.toUpperCase() === sym.toUpperCase());
+          const isTRY = sym.endsWith('.IS') || (pos && pos.currency === 'TRY');
+          if (pos) {
+            symbolDetails[sym] = {
+              avgBuyPrice: pos.avgBuyPrice,
+              buyDate: pos.buyDate || earliestActivityDate,
+              isTRY: !!isTRY
+            };
+          } else {
+            const buys = tradeHistory.filter(t => t.symbol.toUpperCase() === sym.toUpperCase() && t.type === 'BUY');
+            const sells = tradeHistory.filter(t => t.symbol.toUpperCase() === sym.toUpperCase() && t.type === 'SELL');
+            let avgP = 100;
+            let bDate = earliestActivityDate;
+            if (buys.length > 0) {
+              const totShares = buys.reduce((acc, b) => acc + b.shares, 0);
+              const totCost = buys.reduce((acc, b) => acc + b.shares * b.price, 0);
+              avgP = totShares > 0 ? totCost / totShares : buys[0].price;
+              bDate = buys.map(b => b.date).sort()[0] || earliestActivityDate;
+            } else if (sells.length > 0) {
+              const s = sells[0];
+              const pnl = s.realizedPnl || 0;
+              avgP = s.shares > 0 ? Math.max(0.01, (s.shares * s.price - pnl) / s.shares) : s.price;
+              bDate = s.date || earliestActivityDate;
+            }
+            symbolDetails[sym] = {
+              avgBuyPrice: avgP,
+              buyDate: bDate,
+              isTRY: !!isTRY
+            };
+          }
+        });
+
+        // Compute total initial capital invested (cost basis) in TRY
+        let totalInitialCostTRY = 0;
+        trackedSymbols.forEach(sym => {
+          const det = symbolDetails[sym];
+          const pos = portfolio.find(p => p.symbol.toUpperCase() === sym.toUpperCase());
+          let totalShares = pos ? pos.shares : 0;
+          tradeHistory.forEach(t => {
+            if (t.symbol.toUpperCase() === sym.toUpperCase() && t.type === 'SELL') {
+              totalShares += t.shares;
+            }
+          });
+          if (totalShares === 0) {
+            tradeHistory.forEach(t => {
+              if (t.symbol.toUpperCase() === sym.toUpperCase() && t.type === 'BUY') {
+                totalShares += t.shares;
+              }
+            });
+          }
+          if (totalShares <= 0 && pos) totalShares = pos.shares;
+          totalInitialCostTRY += totalShares * det.avgBuyPrice * (det.isTRY ? 1.0 : usdTryRate);
+        });
+
+        if (totalInitialCostTRY <= 0) {
+          totalInitialCostTRY = portfolioStats.totalAllCostTRY || 1;
+        }
+
+        // Carry forward previous price if market was closed on that date
         const lastKnownPrice: Record<string, number> = {};
-        portfolio.forEach(pos => {
-          lastKnownPrice[pos.symbol] = pos.avgBuyPrice;
+        trackedSymbols.forEach(sym => {
+          lastKnownPrice[sym] = symbolDetails[sym].avgBuyPrice;
         });
 
         for (let i = 0; i < validDates.length; i++) {
           const dateKey = validDates[i];
           const timestamp = dateTimestampMap[dateKey] || (new Date(dateKey).getTime() / 1000);
-          let dayValTRY = 0;
 
-          portfolio.forEach(pos => {
-            if (symbolDateMap[pos.symbol] && symbolDateMap[pos.symbol][dateKey] !== undefined) {
-              lastKnownPrice[pos.symbol] = symbolDateMap[pos.symbol][dateKey];
+          // 1. Calculate open holdings value on dateKey
+          let openHoldingsValueTRY = 0;
+
+          trackedSymbols.forEach(sym => {
+            const det = symbolDetails[sym];
+            if (symbolDateMap[sym] && symbolDateMap[sym][dateKey] !== undefined) {
+              lastKnownPrice[sym] = symbolDateMap[sym][dateKey];
             }
-            const cPrice = lastKnownPrice[pos.symbol] || pos.avgBuyPrice;
-            const isTRY = pos.currency === 'TRY' || pos.symbol.endsWith('.IS');
-            
-            // Only count position if this date is on or after its specific purchase date
-            const isOwned = !pos.buyDate || dateKey >= pos.buyDate;
-            if (isOwned) {
-              const posVal = pos.shares * cPrice * (isTRY ? 1.0 : usdTryRate);
-              dayValTRY += posVal;
+            const cPrice = lastKnownPrice[sym] || det.avgBuyPrice;
+
+            // Calculate shares held of sym on dateKey
+            let sharesOnDate = 0;
+            const pos = portfolio.find(p => p.symbol.toUpperCase() === sym.toUpperCase());
+            if (pos && (!pos.buyDate || dateKey >= pos.buyDate)) {
+              sharesOnDate = pos.shares;
+              // Add back any shares sold AFTER dateKey
+              tradeHistory.forEach(t => {
+                if (t.symbol.toUpperCase() === sym.toUpperCase() && t.type === 'SELL' && t.date > dateKey) {
+                  sharesOnDate += t.shares;
+                }
+              });
+            } else if (dateKey >= det.buyDate) {
+              // Not in portfolio (already sold out)
+              let bShares = 0;
+              let sShares = 0;
+              tradeHistory.forEach(t => {
+                if (t.symbol.toUpperCase() === sym.toUpperCase()) {
+                  if (t.type === 'BUY' && t.date <= dateKey) bShares += t.shares;
+                  if (t.type === 'SELL' && t.date <= dateKey) sShares += t.shares;
+                }
+              });
+              sharesOnDate = Math.max(0, bShares - sShares);
+            }
+
+            if (sharesOnDate > 0) {
+              const posVal = sharesOnDate * cPrice * (det.isTRY ? 1.0 : usdTryRate);
+              openHoldingsValueTRY += posVal;
             }
           });
 
-          // PnL relative to cost basis
+          // 2. Calculate cumulative realized cash from sold positions up to dateKey
+          let cumClosedCashTRY = 0;
+          tradeHistory.forEach(t => {
+            if (t.type === 'SELL' && t.date <= dateKey) {
+              const isTRY = t.currency === 'TRY' || t.symbol.endsWith('.IS');
+              const sVal = t.shares * t.price;
+              cumClosedCashTRY += sVal * (isTRY ? 1.0 : usdTryRate);
+            }
+          });
+
+          // Total Account Equity on dateKey = Open Holdings Value + Realized Closed Cash
+          const dayValTRY = openHoldingsValueTRY + cumClosedCashTRY;
+
+          // PnL relative to initial cost basis
           const pnlPct = totalInitialCostTRY > 0 ? ((dayValTRY - totalInitialCostTRY) / totalInitialCostTRY) * 100 : 0;
 
           const dateObj = new Date(dateKey);
@@ -543,12 +718,12 @@ export const PortfolioView: React.FC = () => {
           });
         }
 
-        // If only 1 single point (e.g. bought today), add cost point for clean baseline
+        // If only 1 single point, prepend baseline point
         if (points.length === 1) {
           const first = points[0];
           points.unshift({
             timestamp: first.timestamp - 86400,
-            date: 'Alış Anı',
+            date: 'Başlangıç',
             value: Number(totalInitialCostTRY.toFixed(2)),
             pnlPct: 0
           });
@@ -563,7 +738,7 @@ export const PortfolioView: React.FC = () => {
     };
 
     loadRealEquityCurve();
-  }, [portfolio, equityTimeframe, usdTryRate]);
+  }, [portfolio, tradeHistory, equityTimeframe, usdTryRate]);
 
   // Real Historical Canvas Renderer
   useEffect(() => {
@@ -590,7 +765,9 @@ export const PortfolioView: React.FC = () => {
       ctx.font = '13px Inter, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(
-        portfolio.length === 0 ? 'Portföyünüzde henüz hisse veya fon bulunmuyor.' : 'Getiri eğrisi hesaplanıyor...',
+        (portfolio.length === 0 && tradeHistory.length === 0)
+          ? 'Portföyünüzde henüz hisse veya işlem bulunmuyor.'
+          : 'Getiri eğrisi hesaplanıyor...',
         width / 2,
         height / 2
       );
@@ -955,7 +1132,13 @@ export const PortfolioView: React.FC = () => {
 
           <div className="flex items-center justify-between pt-3 border-t border-white/[0.08] text-xs">
             <span className="font-sans text-slate-400">Aktif Pozisyon:</span>
-            <span className="font-bold text-slate-200">{portfolio.length} Hisse Senedi</span>
+            <span className="font-bold text-slate-200">
+              {portfolio.length > 0
+                ? `${portfolio.length} Hisse Senedi`
+                : tradeHistory.length > 0
+                ? '0 Açık (Tümü Nakit)'
+                : '0 Hisse Senedi'}
+            </span>
           </div>
         </div>
 
@@ -982,7 +1165,9 @@ export const PortfolioView: React.FC = () => {
                   {portfolioStats.bestPerformer.symbol.replace('.IS', '')}
                 </div>
                 <div className="text-xs text-slate-400 font-sans truncate mt-1">
-                  {portfolioStats.bestPerformer.quote?.trName || portfolioStats.bestPerformer.quote?.shortName || (portfolioStats.bestPerformer.isTRY ? 'BIST Pozisyonu' : 'Global Hisse')}
+                  {portfolio.length === 0
+                    ? 'Kapanan İşlem Kârı'
+                    : (portfolioStats.bestPerformer.quote?.trName || portfolioStats.bestPerformer.quote?.shortName || (portfolioStats.bestPerformer.isTRY ? 'BIST Pozisyonu' : 'Global Hisse'))}
                 </div>
               </div>
 
@@ -996,7 +1181,9 @@ export const PortfolioView: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="my-3 text-slate-500 text-sm font-sans">Pozisyon bulunmuyor</div>
+            <div className="my-3 text-slate-500 text-sm font-sans">
+              {tradeHistory.length > 0 ? 'Pozisyon kapandı' : 'Pozisyon bulunmuyor'}
+            </div>
           )}
 
           <div className="flex items-center justify-between pt-3 border-t border-white/[0.08] text-xs">
@@ -1020,11 +1207,15 @@ export const PortfolioView: React.FC = () => {
               <h3 className="font-bold text-base text-white">
                 Portföy Büyüme & Getiri Eğrisi
               </h3>
-              {portfolio.length > 0 && (
+              {portfolio.length > 0 ? (
                 <span className="text-[11px] font-sans font-semibold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-lg">
                   Alış Tarihinden İtibaren
                 </span>
-              )}
+              ) : tradeHistory.length > 0 ? (
+                <span className="text-[11px] font-sans font-semibold text-sky-400 bg-sky-500/10 px-2.5 py-0.5 rounded-lg">
+                  Tüm İşlemler & Kârlar Dahil
+                </span>
+              ) : null}
             </div>
 
             <div className="flex items-center bg-[#161d2c] p-0.5 rounded-xl text-xs font-mono font-bold">
@@ -1086,42 +1277,63 @@ export const PortfolioView: React.FC = () => {
           <div className="flex flex-col gap-3">
             {/* Visual Multi-segment bar */}
             <div className="w-full h-4 bg-[#141b27] rounded-full overflow-hidden flex gap-0.5 p-0.5">
-              {portfolioStats.positions.map((pos, idx) => (
+              {portfolioStats.positions.length > 0 ? (
+                portfolioStats.positions.map((pos, idx) => (
+                  <div
+                    key={pos.symbol}
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.max(3, pos.weight)}%`,
+                      backgroundColor: COLORS[idx % COLORS.length],
+                    }}
+                    title={`${pos.symbol}: ${pos.weight.toFixed(1)}%`}
+                  />
+                ))
+              ) : tradeHistory.length > 0 ? (
                 <div
-                  key={pos.symbol}
-                  className="h-full rounded-full transition-all"
-                  style={{
-                    width: `${Math.max(3, pos.weight)}%`,
-                    backgroundColor: COLORS[idx % COLORS.length],
-                  }}
-                  title={`${pos.symbol}: ${pos.weight.toFixed(1)}%`}
+                  className="h-full w-full rounded-full bg-emerald-500 transition-all"
+                  title="Nakit & Realize Bakiye: 100%"
                 />
-              ))}
+              ) : null}
             </div>
 
             {/* Position Weight List */}
             <div className="grid grid-cols-2 gap-2.5 pt-1 max-h-[220px] overflow-y-auto pr-1">
-              {portfolioStats.positions.map((pos, idx) => (
-                <div
-                  key={pos.symbol}
-                  onClick={() => selectStock(pos.symbol)}
-                  className="bg-[#141b27] hover:bg-[#1a2334] p-2.5 rounded-xl flex items-center justify-between cursor-pointer transition"
-                >
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: COLORS[idx % COLORS.length] }}
-                    />
-                    <span className="font-mono font-bold text-xs text-white">
-                      {pos.symbol.replace('.IS', '')}
+              {portfolioStats.positions.length > 0 ? (
+                portfolioStats.positions.map((pos, idx) => (
+                  <div
+                    key={pos.symbol}
+                    onClick={() => selectStock(pos.symbol)}
+                    className="bg-[#141b27] hover:bg-[#1a2334] p-2.5 rounded-xl flex items-center justify-between cursor-pointer transition"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: COLORS[idx % COLORS.length] }}
+                      />
+                      <span className="font-mono font-bold text-xs text-white">
+                        {pos.symbol.replace('.IS', '')}
+                      </span>
+                    </div>
+
+                    <span className="font-mono font-black text-xs text-slate-200">
+                      {pos.weight.toFixed(1)}%
                     </span>
                   </div>
-
-                  <span className="font-mono font-black text-xs text-slate-200">
-                    {pos.weight.toFixed(1)}%
+                ))
+              ) : tradeHistory.length > 0 ? (
+                <div className="bg-[#141b27] p-2.5 rounded-xl flex items-center justify-between col-span-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0" />
+                    <span className="font-sans font-bold text-xs text-white">
+                      Nakit & Realize Bakiye
+                    </span>
+                  </div>
+                  <span className="font-mono font-black text-xs text-emerald-400">
+                    100.0%
                   </span>
                 </div>
-              ))}
+              ) : null}
             </div>
           </div>
         </div>
