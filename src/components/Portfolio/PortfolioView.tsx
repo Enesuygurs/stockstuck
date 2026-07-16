@@ -2101,28 +2101,6 @@ export const PortfolioView: React.FC = () => {
                   )}
                 </div>
 
-                {/* Real-time Verified Asset Info Badge (Only on BUY to prevent redundant info on SELL) */}
-                {modalMode === 'BUY' && symbolValidated === true && validatedStockInfo && (
-                  <div className="flex items-center justify-between p-2.5 px-3 rounded-xl bg-emerald-500/10 text-xs">
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                      <div className="flex flex-col truncate">
-                        <span className="text-white font-bold truncate">{validatedStockInfo.name}</span>
-                        <span className="text-[10px] text-slate-400">{validatedStockInfo.exchange}</span>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className="font-mono font-bold text-white">
-                        {validatedStockInfo.currency === 'TRY' ? '₺' : '$'}{validatedStockInfo.price.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </div>
-                      {validatedStockInfo.changePercent !== undefined && (
-                        <div className={`text-[10px] font-mono font-bold ${validatedStockInfo.changePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                          {validatedStockInfo.changePercent >= 0 ? '+' : ''}{validatedStockInfo.changePercent.toFixed(2)}%
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
 
                 {/* Invalid Asset Alert Message */}
                 {symbolValidated === false && (
