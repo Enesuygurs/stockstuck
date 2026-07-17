@@ -1923,7 +1923,7 @@ export const PortfolioView: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Quick Action Buttons: Bell (Alert) + Trade (Al/Sat) */}
+                    {/* Quick Action Button: Bell (Alert) */}
                     <div className="flex items-center gap-1 pl-2">
                       <button
                         onClick={(e) => {
@@ -1934,19 +1934,6 @@ export const PortfolioView: React.FC = () => {
                         title="Alarm Kur"
                       >
                         <Bell className="w-3.5 h-3.5" />
-                      </button>
-
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setModalSymbol(sym);
-                          setModalMode('BUY');
-                          setIsModalOpen(true);
-                        }}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-emerald-400/10 transition"
-                        title="Alım Yap"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
