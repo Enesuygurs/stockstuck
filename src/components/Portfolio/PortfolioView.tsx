@@ -17,7 +17,6 @@ import {
   ShieldCheck,
   Check,
   X,
-  Search,
   ExternalLink,
   ArrowUpDown,
   ArrowUp,
@@ -87,8 +86,6 @@ export const PortfolioView: React.FC = () => {
   const [newListName, setNewListName] = useState('');
   const [isEditingListName, setIsEditingListName] = useState(false);
   const [editListName, setEditListName] = useState('');
-  const [quickAddSearch, setQuickAddSearch] = useState('');
-  const [quickAddResults, setQuickAddResults] = useState<any[]>([]);
 
 
   // Sorting state for Positions & Trade History
@@ -1727,46 +1724,6 @@ export const PortfolioView: React.FC = () => {
               </div>
             </div>
 
-            {/* Quick Add Stock Search Input */}
-            <div className="relative w-full sm:w-72">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                value={quickAddSearch}
-                onChange={(e) => setQuickAddSearch(e.target.value)}
-                placeholder={language === 'tr' ? 'Bu listeye hisse ekle...' : 'Add stock to list...'}
-                className="w-full bg-[#161d2c] rounded-xl pl-9 pr-3 py-1.5 text-xs text-white placeholder-slate-500 outline-none transition hover:bg-[#1a2335] focus:bg-[#1c263a]"
-              />
-
-              {/* Autocomplete Dropdown */}
-              {quickAddResults.length > 0 && (
-                <div className="absolute left-0 right-0 top-full mt-1.5 bg-[#141b27] rounded-xl shadow-2xl z-30 overflow-hidden divide-y divide-white/[0.04]">
-                  {quickAddResults.map((res) => (
-                    <button
-                      key={res.symbol}
-                      onClick={() => {
-                        addToWatchlist(res.symbol, activeWatchlistId);
-                        setQuickAddSearch('');
-                        setQuickAddResults([]);
-                      }}
-                      className="w-full p-2.5 text-left hover:bg-white/[0.06] flex items-center justify-between transition group"
-                    >
-                      <div>
-                        <div className="font-mono font-bold text-xs text-white group-hover:text-emerald-400">
-                          {res.symbol}
-                        </div>
-                        <div className="text-[10px] text-slate-400 truncate max-w-[180px]">
-                          {res.name}
-                        </div>
-                      </div>
-                      <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
-                        + Ekle
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Watchlist Group Pills & Create Button */}
