@@ -1370,7 +1370,7 @@ export const PortfolioView: React.FC = () => {
                   className="py-4 px-4 font-sans cursor-pointer hover:text-white transition group"
                 >
                   <div className="flex items-center gap-1.5">
-                    <span>Varlık / Şirket</span>
+                    <span>Varlık</span>
                     {renderPosSortIcon('symbol')}
                   </div>
                 </th>
@@ -1379,7 +1379,7 @@ export const PortfolioView: React.FC = () => {
                   className="py-4 px-4 cursor-pointer hover:text-white transition group"
                 >
                   <div className="flex items-center gap-1.5">
-                    <span>Lot / Adet</span>
+                    <span>Adet</span>
                     {renderPosSortIcon('shares')}
                   </div>
                 </th>
@@ -1533,7 +1533,7 @@ export const PortfolioView: React.FC = () => {
                           <button
                             onClick={() => handleOpenTradeModal(pos.symbol, 'SELL')}
                             className="px-2.5 py-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600 text-rose-400 hover:text-white font-bold text-xs transition"
-                            title="Pozisyonu Azalt / Sat"
+                            title="Pozisyonu Sat"
                           >
                             - SAT
                           </button>
@@ -1956,7 +1956,7 @@ export const PortfolioView: React.FC = () => {
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>Adet / Lot İle</span>
+                <span>Adet İle</span>
               </button>
               <button
                 type="button"
@@ -1968,7 +1968,7 @@ export const PortfolioView: React.FC = () => {
                 }`}
               >
                 <Banknote className="w-3.5 h-3.5" />
-                <span>Tutar / Nakit İle</span>
+                <span>Tutar İle</span>
               </button>
             </div>
 
@@ -1977,7 +1977,7 @@ export const PortfolioView: React.FC = () => {
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                    Varlık / Hisse Kodu
+                    Varlık Kodu
                   </label>
                   {isValidatingSymbol ? (
                     <span className="flex items-center gap-1 text-[11px] text-amber-400 font-mono">

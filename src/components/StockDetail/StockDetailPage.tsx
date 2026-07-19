@@ -438,7 +438,7 @@ export const StockDetailPage: React.FC = () => {
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>Adet / Lot İle</span>
+                <span>Adet İle</span>
               </button>
               <button
                 type="button"
@@ -450,7 +450,7 @@ export const StockDetailPage: React.FC = () => {
                 }`}
               >
                 <Banknote className="w-3.5 h-3.5" />
-                <span>Tutar / Nakit İle</span>
+                <span>Tutar İle</span>
               </button>
             </div>
 
@@ -542,7 +542,7 @@ export const StockDetailPage: React.FC = () => {
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <label className="text-xs text-slate-200 font-bold">
-                      {tradeMode === 'BUY' ? 'Yatırılacak Tutar:' : 'Çekilecek / Satılacak Tutar:'}
+                      {tradeMode === 'BUY' ? 'Yatırılacak Tutar:' : 'Satılacak Tutar:'}
                     </label>
                     {tradeMode === 'SELL' && currentHolding && quote && (
                       <span className="text-[11px] text-slate-400 font-mono">

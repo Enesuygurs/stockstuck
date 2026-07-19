@@ -709,7 +709,7 @@ export const NotificationsDrawer: React.FC = () => {
               <div ref={searchBoxRef}>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-xs font-bold text-slate-300">
-                    {language === 'tr' ? 'Hisse Kodu / Varlık' : 'Stock Ticker'}
+                    {language === 'tr' ? 'Varlık Kodu' : 'Asset Symbol'}
                   </label>
                   {isValidatingSymbol ? (
                     <span className="flex items-center gap-1 text-[11px] text-amber-400 font-mono">
@@ -943,7 +943,7 @@ export const NotificationsDrawer: React.FC = () => {
               {/* Notes Input */}
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                  {language === 'tr' ? 'Alarm Notu / Açıklama (İsteğe bağlı)' : 'Notes (Optional)'}
+                  {language === 'tr' ? 'Alarm Notu (İsteğe bağlı)' : 'Notes (Optional)'}
                 </label>
                 <input
                   type="text"
