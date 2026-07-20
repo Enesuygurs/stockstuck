@@ -829,17 +829,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [alerts]);
 
   // ==========================================
-  // PORTFOLIO STATE
+  // PORTFOLIO STATE (Clean initial slate)
   // ==========================================
   const [portfolio, setPortfolio] = useState<PortfolioPosition[]>(() => {
     try {
+      if (!localStorage.getItem('stockstuck_cleared_mock_v3')) {
+        localStorage.removeItem('stockstuck_portfolio');
+        localStorage.removeItem('stockstuck_trades');
+        localStorage.setItem('stockstuck_cleared_mock_v3', 'true');
+        return [];
+      }
       const saved = localStorage.getItem('stockstuck_portfolio');
-      return saved ? JSON.parse(saved) : [
-        { symbol: 'NVDA', shares: 15, avgBuyPrice: 195.50, buyDate: '2026-06-12', currency: 'USD' },
-        { symbol: 'THYAO.IS', shares: 250, avgBuyPrice: 285.00, buyDate: '2026-07-04', currency: 'TRY' },
-        { symbol: 'AAPL', shares: 20, avgBuyPrice: 280.00, buyDate: '2026-05-18', currency: 'USD' },
-        { symbol: 'GARAN.IS', shares: 400, avgBuyPrice: 112.50, buyDate: '2026-08-01', currency: 'TRY' },
-      ];
+      return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
     }
@@ -847,11 +848,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryItem[]>(() => {
     try {
+      if (localStorage.getItem('stockstuck_cleared_mock_v3') !== 'true') {
+        return [];
+      }
       const saved = localStorage.getItem('stockstuck_trades');
-      return saved ? JSON.parse(saved) : [
-        { id: '1', symbol: 'NVDA', type: 'BUY', shares: 15, price: 195.50, date: '2026-06-12', currency: 'USD' },
-        { id: '2', symbol: 'THYAO.IS', type: 'BUY', shares: 250, price: 285.00, date: '2026-07-04', currency: 'TRY' },
-      ];
+      return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
     }

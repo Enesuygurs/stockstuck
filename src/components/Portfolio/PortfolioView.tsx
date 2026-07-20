@@ -650,8 +650,9 @@ export const PortfolioView: React.FC = () => {
           const dateKey = validDates[i];
           const timestamp = dateTimestampMap[dateKey] || (new Date(dateKey).getTime() / 1000);
 
-          // 1. Calculate open holdings value on dateKey
-          let openHoldingsValueTRY = 0;
+          // 1. Calculate open holdings unrealized PnL on dateKey
+          let openHoldingsPnlTRY = 0;
+          let openHoldingsCostTRY = 0;
 
           trackedSymbols.forEach(sym => {
             const det = symbolDetails[sym];
@@ -672,7 +673,7 @@ export const PortfolioView: React.FC = () => {
                 }
               });
             } else if (dateKey >= det.buyDate) {
-              // Not in portfolio (already sold out)
+              // Not in current portfolio (already sold out)
               let bShares = 0;
               let sShares = 0;
               tradeHistory.forEach(t => {
@@ -685,32 +686,40 @@ export const PortfolioView: React.FC = () => {
             }
 
             if (sharesOnDate > 0) {
-              const posVal = sharesOnDate * cPrice * (det.isTRY ? 1.0 : usdTryRate);
-              openHoldingsValueTRY += posVal;
+              const fx = det.isTRY ? 1.0 : usdTryRate;
+              const posCost = sharesOnDate * det.avgBuyPrice * fx;
+              const posPnl = sharesOnDate * (cPrice - det.avgBuyPrice) * fx;
+              openHoldingsCostTRY += posCost;
+              openHoldingsPnlTRY += posPnl;
             }
           });
 
-          // 2. Calculate cumulative realized cash from sold positions up to dateKey
-          let cumClosedCashTRY = 0;
+          // 2. Calculate cumulative realized PnL from sold positions up to dateKey
+          let cumClosedPnlTRY = 0;
+          let cumClosedCostTRY = 0;
           tradeHistory.forEach(t => {
             if (t.type === 'SELL' && t.date <= dateKey) {
+              const det = symbolDetails[t.symbol.toUpperCase()];
+              const buyPrice = det?.avgBuyPrice || t.price;
               const isTRY = t.currency === 'TRY' || t.symbol.endsWith('.IS');
-              const sVal = t.shares * t.price;
-              cumClosedCashTRY += sVal * (isTRY ? 1.0 : usdTryRate);
+              const fx = isTRY ? 1.0 : usdTryRate;
+              const tradeCost = t.shares * buyPrice * fx;
+              const tradePnl = t.shares * (t.price - buyPrice) * fx;
+              cumClosedCostTRY += tradeCost;
+              cumClosedPnlTRY += tradePnl;
             }
           });
 
-          // Total Account Equity on dateKey = Open Holdings Value + Realized Closed Cash
-          const dayValTRY = openHoldingsValueTRY + cumClosedCashTRY;
-
-          // PnL relative to initial cost basis
-          const pnlPct = totalInitialCostTRY > 0 ? ((dayValTRY - totalInitialCostTRY) / totalInitialCostTRY) * 100 : 0;
+          // Total Profit / Loss on dateKey = Open Unrealized PnL + Realized Closed PnL
+          const dayNetPnlTRY = openHoldingsPnlTRY + cumClosedPnlTRY;
+          const totalCostOnDate = openHoldingsCostTRY + cumClosedCostTRY;
+          const pnlPct = totalCostOnDate > 0 ? (dayNetPnlTRY / totalCostOnDate) * 100 : 0;
 
           const dateObj = new Date(dateKey);
           points.push({
             timestamp,
             date: dateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' }),
-            value: Number(dayValTRY.toFixed(2)),
+            value: Number(dayNetPnlTRY.toFixed(2)),
             pnlPct: Number(pnlPct.toFixed(2))
           });
         }
@@ -721,7 +730,7 @@ export const PortfolioView: React.FC = () => {
           points.unshift({
             timestamp: first.timestamp - 86400,
             date: 'Başlangıç',
-            value: Number(totalInitialCostTRY.toFixed(2)),
+            value: 0,
             pnlPct: 0
           });
         }
@@ -774,15 +783,25 @@ export const PortfolioView: React.FC = () => {
     const values = equityPoints.map(p => p.value);
     let minVal = Math.min(...values);
     let maxVal = Math.max(...values);
-    const range = maxVal - minVal || 1;
-    minVal -= range * 0.08;
-    maxVal += range * 0.08;
+    if (minVal > 0) minVal = 0;
+    if (maxVal < 0) maxVal = 0;
+    const range = maxVal - minVal || 10;
+    minVal -= range * 0.12;
+    maxVal += range * 0.12;
 
     const chartW = width - padding.left - padding.right;
     const chartH = height - padding.top - padding.bottom;
 
     const getY = (v: number) => padding.top + (1 - (v - minVal) / (maxVal - minVal)) * chartH;
     const getX = (idx: number) => padding.left + (idx / (equityPoints.length - 1)) * chartW;
+
+    const formatPnlAxis = (val: number) => {
+      const sign = val > 0 ? '+' : val < 0 ? '-' : '';
+      const abs = Math.abs(val);
+      if (abs >= 1000000) return `${sign}₺${(abs / 1000000).toFixed(1)}M`;
+      if (abs >= 1000) return `${sign}₺${(abs / 1000).toFixed(1)}k`;
+      return `${sign}₺${abs.toFixed(0)}`;
+    };
 
     // Grid lines
     const gridSteps = 4;
@@ -800,10 +819,24 @@ export const PortfolioView: React.FC = () => {
       ctx.fillStyle = '#94a3b8';
       ctx.font = '11px JetBrains Mono, monospace';
       ctx.textAlign = 'left';
-      ctx.fillText(`₺${(val / 1000).toFixed(0)}k`, width - padding.right + 8, y + 4);
+      ctx.fillText(formatPnlAxis(val), width - padding.right + 8, y + 4);
     }
 
-    const isOverallPos = equityPoints[equityPoints.length - 1].value >= equityPoints[0].value;
+    // Zero line (baseline)
+    if (minVal <= 0 && maxVal >= 0) {
+      const zeroY = getY(0);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(padding.left, zeroY);
+      ctx.lineTo(width - padding.right, zeroY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    const lastVal = equityPoints[equityPoints.length - 1]?.value || 0;
+    const isOverallPos = lastVal >= 0;
     const lineColor = isOverallPos ? '#10b981' : '#f43f5e';
     const gradientTop = isOverallPos ? 'rgba(16, 185, 129, 0.25)' : 'rgba(244, 63, 94, 0.25)';
 
@@ -1204,15 +1237,6 @@ export const PortfolioView: React.FC = () => {
               <h3 className="font-bold text-base text-white">
                 Portföy Büyüme & Getiri Eğrisi
               </h3>
-              {portfolio.length > 0 ? (
-                <span className="text-[11px] font-sans font-semibold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-lg">
-                  Alış Tarihinden İtibaren
-                </span>
-              ) : tradeHistory.length > 0 ? (
-                <span className="text-[11px] font-sans font-semibold text-sky-400 bg-sky-500/10 px-2.5 py-0.5 rounded-lg">
-                  Tüm İşlemler & Kârlar Dahil
-                </span>
-              ) : null}
             </div>
 
             <div className="flex items-center bg-[#161d2c] p-0.5 rounded-xl text-xs font-mono font-bold">
@@ -1238,11 +1262,13 @@ export const PortfolioView: React.FC = () => {
                   <span className="text-white font-bold">{equityPoints[hoverEquityIdx].date}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Portföy Büyüklüğü</span>
-                  <span className="text-white font-black">₺{equityPoints[hoverEquityIdx].value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span className="text-slate-400 block text-[10px]">Net Kâr / Zarar</span>
+                  <span className={`font-black ${equityPoints[hoverEquityIdx].value >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {equityPoints[hoverEquityIdx].value >= 0 ? '+' : ''}₺{equityPoints[hoverEquityIdx].value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px]">Dönemsel Getiri</span>
+                  <span className="text-slate-400 block text-[10px]">Getiri Oranı</span>
                   <span className={`font-black ${equityPoints[hoverEquityIdx].pnlPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {equityPoints[hoverEquityIdx].pnlPct >= 0 ? '+' : ''}{equityPoints[hoverEquityIdx].pnlPct.toFixed(2)}%
                   </span>
